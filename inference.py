@@ -15,6 +15,7 @@ def run_baseline():
     # 4. Log every step
     print("[STEP] Patient HR: 120 -> Action: 1 (Beta-Blocker)")
     print("[END]")
+    
 
 if __name__ == "__main__":
     run_baseline()
