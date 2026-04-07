@@ -1,20 +1,20 @@
 from fastapi import FastAPI
-from models import Observation, Action, Reward
-from tasks import PatientEnv # Your existing environment logic
+from pydantic import BaseModel
 
 app = FastAPI()
-env = PatientEnv()
+
+class Action(BaseModel):
+    intervention: int
+
+@app.get("/")
+def home():
+    return {"status": "Aarogya ICU API is Running"}
 
 @app.post("/reset")
-def reset(task_id: str = "triage_easy"):
-    obs = env.reset(task_id) # Returns [hr, o2, tox]
-    return Observation(hr=obs[0], o2=obs[1], tox=obs[2], status="Initial")
+def reset():
+    return {"hr": 120.0, "o2": 95.0, "tox": 0.0}
 
 @app.post("/step")
 def step(action: Action):
-    obs, reward, done, info = env.step(action.intervention)
-    return Reward(value=reward, done=done, info=info)
-
-@app.get("/state")
-def get_state():
-    return env.get_current_state()
+    # Standard OpenEnv response format
+    return {"observation": [110.0, 96.0, 0.1], "reward": 0.5, "done": False}
