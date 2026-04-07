@@ -1,0 +1,5 @@
+patient_id,heart_rate,oxygen,toxicity,condition_label
+P101,135,92,0.1,emergency_tachycardia
+P102,82,88,0.0,hypoxia_risk
+P103,110,96,0.8,medication_toxicity_warning
+P104,70,98,0.0,stable_baseline

@@ -1,0 +1,5 @@
+patient_id,stability_score,outcome
+P101,0.0,CRITICAL
+P102,0.0,CRITICAL
+P103,0.03,CRITICAL
+P104,0.0,CRITICAL
