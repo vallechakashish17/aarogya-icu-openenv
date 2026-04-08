@@ -11,10 +11,12 @@ dependencies = [
     "openai",
     "openenv>=0.1.0",
     "pandas",
-    "numpy"
+    "numpy",
+    "requests"
 ]
 
 [project.scripts]
+# This maps the 'server' command to your main() function
 server = "server.app:main"
 
 [tool.setuptools]
