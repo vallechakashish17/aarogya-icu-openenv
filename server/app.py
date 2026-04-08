@@ -1,30 +1,22 @@
+import uvicorn
 import os
 from fastapi import FastAPI
 from openai import OpenAI
 
 app = FastAPI()
 
-# 1. Define a helper to get the client only when needed
+# Move client creation inside a function to prevent boot-time crashes
 def get_llm_client():
-    api_key = os.environ.get("API_KEY", "dummy_key_for_boot")
-    base_url = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
-    return OpenAI(api_key=api_key, base_url=base_url)
+    return OpenAI(
+        api_key=os.environ.get("API_KEY", "dummy_key"),
+        base_url=os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
+    )
 
-# 2. Update your endpoints to use the helper
-@app.post("/reset")
-def reset():
-    client = get_llm_client() # Client is created here, NOT at the top of the file
-    # ... your reset logic using client ...
-    return {"observation": [140.0, 95.0, 0.0]}
+# ... your existing @app.post("/reset") and @app.post("/step") logic ...
 
-@app.post("/step")
-def step(action: dict):
-    client = get_llm_client() # Client is created here safely
-    # ... your step logic using client ...
-    return {"observation": [130.0, 96.0, 0.1], "reward": 0.5, "done": False}
+def main():
+    """The validator calls this function directly"""
+    uvicorn.run("server.app:app", host="0.0.0.0", port=7860, reload=False)
 
-@app.get("/")
-def health():
-    return {"status": "Aarogya ICU API is Running"}
-
-# ... rest of your code (main function, etc.) ...
+if __name__ == "__main__":
+    main()
