@@ -30,3 +30,6 @@ async def reset():
 @app.get("/")
 def health():
     return {"status": "Aarogya ICU API is Running"}
+
+if __name__ == "__main__":
+    main()
