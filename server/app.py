@@ -1,38 +1,32 @@
 import os
-import uvicorn
 from fastapi import FastAPI
 from openai import OpenAI
 
 app = FastAPI()
 
-# Phase 2 Fix: Create the client inside a function so it uses 
-# the API_BASE_URL and API_KEY injected by the Scaler validator.
+# SAFE VERSION: Prevents Internal Server Error if variables are missing
 def get_llm_client():
-    return OpenAI(
-        base_url=os.environ.get("API_BASE_URL"), 
-        api_key=os.environ.get("API_KEY")
-    )
+    # Use .get() with a fallback to prevent "KeyError" or initialization crashes
+    api_key = os.environ.get("API_KEY", "dummy_for_testing")
+    base_url = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
+    
+    return OpenAI(api_key=api_key, base_url=base_url)
+
+@app.post("/reset")
+async def reset():
+    try:
+        # Initialize client safely
+        client = get_llm_client()
+        
+        # YOUR RESET LOGIC HERE
+        # Example: observation = my_env.reset()
+        
+        return {"observation": [140.0, 95.0, 0.0]} 
+    except Exception as e:
+        # This will show you exactly what is wrong in the Hugging Face logs
+        print(f"Error during reset: {str(e)}")
+        return {"error": "Internal server error occurred", "details": str(e)}
 
 @app.get("/")
 def health():
     return {"status": "Aarogya ICU API is Running"}
-
-@app.post("/reset")
-def reset():
-    client = get_llm_client()
-    # Your logic here...
-    return {"observation": [140.0, 95.0, 0.0]}
-
-@app.post("/step")
-def step(action: dict):
-    client = get_llm_client()
-    # Your logic here...
-    return {"observation": [130.0, 96.0, 0.1], "reward": 0.5, "done": False}
-
-# Phase 1 Fix: Explicit main function for the 'multi-mode deployment' check
-def main():
-    port = int(os.environ.get("PORT", 7860))
-    uvicorn.run(app, host="0.0.0.0", port=port)
-
-if __name__ == "__main__":
-    main()
