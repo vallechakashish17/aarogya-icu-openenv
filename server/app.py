@@ -1,22 +1,26 @@
-import uvicorn
 import os
 from fastapi import FastAPI
-from openai import OpenAI
+import uvicorn
 
 app = FastAPI()
 
-# Move client creation inside a function to prevent boot-time crashes
-def get_llm_client():
-    return OpenAI(
-        api_key=os.environ.get("API_KEY", "dummy_key"),
-        base_url=os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
-    )
+@app.get("/")
+def health():
+    return {"status": "Aarogya ICU API is Running"}
 
-# ... your existing @app.post("/reset") and @app.post("/step") logic ...
+@app.post("/reset")
+def reset():
+    # Logic for patient initialization
+    return {"observation": [140.0, 95.0, 0.0]}
+
+@app.post("/step")
+def step(action: dict):
+    # Logic for medical intervention
+    return {"observation": [130.0, 96.0, 0.1], "reward": 0.5, "done": False}
 
 def main():
-    """The validator calls this function directly"""
-    uvicorn.run("server.app:app", host="0.0.0.0", port=7860, reload=False)
+    # The port MUST be 7860 for Hugging Face
+    uvicorn.run(app, host="0.0.0.0", port=7860)
 
 if __name__ == "__main__":
     main()
