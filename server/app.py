@@ -1,6 +1,13 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    base_url=os.environ.get("API_BASE_URL"), # CRITICAL: Use the proxy URL
+    api_key=os.environ.get("API_KEY")        # CRITICAL: Use the provided key
+)
 
 app = FastAPI()
 
