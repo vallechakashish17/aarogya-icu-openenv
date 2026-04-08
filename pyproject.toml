@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-# This maps the 'server' command to your main() function
+# This MUST match the folder.file:function name
 server = "server.app:main"
 
 [tool.setuptools]
