@@ -1,65 +1,49 @@
+import json
 import pandas as pd
-import numpy as np
-import os
-from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv
-from openenv_healthcare import OpenEnvHealthcare
-from data_pipeline import MedicalDataLoader
+from datetime import datetime
 
-def run_final_fix():
-    # 1. Setup Environment
-    def make_env(): return OpenEnvHealthcare()
-    env = DummyVecEnv([make_env])
-    
-    # 2. Train the AI
-    print("\n--- Phase 1: AI Medical Training (Residency) ---")
-    model = PPO("MlpPolicy", env, verbose=1,learning_rate=0.0001)
-    model.learn(total_timesteps=30000)
-    
-    # 3. Audit Patients from CSV
-    loader = MedicalDataLoader("patients.csv")
-    eval_env = OpenEnvHealthcare()
-    results = [] 
-    
-    print("--- Phase 2: Running Clinical Audit on CSV Data ---")
-    while True:
-        p = loader.get_next_patient()
-        if not p: break
+class MasterAudit:
+    def __init__(self, filename="master_clinical_audit.json"):
+        self.filename = filename
+        self.audit_id = f"AUDIT-{datetime.now().strftime('%Y%m%d-%H%M')}"
+        self.logs = []
+        # Mapping actions for the final human-readable report
+        self.action_labels = {
+            0: "Monitor",
+            1: "Administer Medication",
+            2: "Provide Oxygen",
+            3: "Emergency: Call Doctor"
+        }
+
+    def log_step(self, patient_id, step, state, action, reward, info):
+        """Records forensic data for every AI decision."""
+        entry = {
+            "step": step,
+            "patient_id": patient_id,
+            "vitals": {
+                "heart_rate": round(float(state[0]), 2),
+                "o2_sat": round(float(state[1]), 2),
+                "toxicity": round(float(state[2]), 2)
+            },
+            "decision": self.action_labels.get(int(action), "Unknown"),
+            "clinical_reward": round(reward, 4),
+            "emergency_intervention": info.get("doctor_called", False)
+        }
+        self.logs.append(entry)
+
+    def finalize(self, avg_stability, cmo_feedback):
+        """Compiles the final audit and saves to JSON."""
+        report = {
+            "audit_metadata": {
+                "audit_id": self.audit_id,
+                "timestamp": datetime.now().isoformat(),
+                "overall_stability_score": round(float(avg_stability), 4)
+            },
+            "cmo_audit_summary": cmo_feedback,
+            "forensic_logs": self.logs
+        }
         
-        obs, _ = eval_env.reset(options={"custom_start": [p['hr'], p['o2'], p['tox']]})
-        stable_count = 0
-        
-        for _ in range(30):
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, done, trunc, _ = eval_env.step(action)
-            # Check if patient is in the "Safe Zone"
-            if 60 <= obs[0] <= 100 and obs[1] >= 92:
-                stable_count += 1
-            if done or trunc: break
+        with open(self.filename, "w") as f:
+            json.dump(report, f, indent=4)
             
-        results.append({
-            "id": p['id'], 
-            "score": round(stable_count / 30, 2)
-        })
-
-    # 4. Save the CSV
-    pd.DataFrame(results).to_csv("final_clinical_report.csv", index=False)
-
-    # 5. THE TERMINAL TABLE (The part you want to see!)
-    print("\n" + "="*45)
-    print(f"{'PATIENT ID':<15} | {'STABILITY SCORE':<15} | {'STATUS'}")
-    print("-" * 45)
-    
-    for r in results:
-        # Visual indicator for the user
-        status = "✅ STABILIZED" if r['score'] > 0.80 else "⚠️ CRITICAL"
-        print(f"{r['id']:<15} | {r['score']:<15.2f} | {status}")
-    
-    print("-" * 45)
-    avg_score = np.mean([r['score'] for r in results])
-    print(f"OVERALL POPULATION STABILITY: {avg_score:.2f}")
-    print("="*45)
-    print("Report saved to: final_clinical_report.csv\n")
-
-if __name__ == "__main__":
-    run_final_fix()
+        print(f"✅ Master Audit File {self.audit_id} finalized and exported to {self.filename}")

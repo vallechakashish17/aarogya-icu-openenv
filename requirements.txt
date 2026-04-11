@@ -1,9 +1,9 @@
 gymnasium==0.29.1
-stable-baselines3==2.2.1
-fastapi==0.109.0
-uvicorn==0.27.0
-pydantic==2.5.3
+stable-baselines3[extra]==2.2.1
+shimmy>=1.3.0
 numpy==1.26.3
 pandas
 streamlit
 openai
+litellm
+torch>=2.0.0
