@@ -1,56 +1,101 @@
 from fastapi import FastAPI, HTTPException
-from openenv_healthcare import OpenEnvHealthcare, MedicalAction, MedicalObservation
 from pydantic import BaseModel
-import uvicorn
+from typing import Optional
+import uuid
 
-# SCHEMA FOR API COMMUNICATION (Requirement 2)
+# ── inline environment (no external openenv_healthcare needed) ──────────────
+class ICUEnvironment:
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.step_count = 0
+        self.heart_rate = 120
+        self.o2_saturation = 92
+        self.toxicity = 0
+        self.done = False
+        return self._obs()
+
+    def _obs(self):
+        return {
+            "heart_rate": self.heart_rate,
+            "o2_saturation": self.o2_saturation,
+            "toxicity": self.toxicity,
+            "step": self.step_count,
+        }
+
+    def step(self, action_id: int):
+        reward = 0.0
+        if action_id == 1:  # beta blocker
+            self.heart_rate = max(60, self.heart_rate - 10)
+            self.toxicity += 5
+            reward = 1.0 if self.heart_rate <= 100 else 0.5
+        elif action_id == 2:  # oxygen
+            self.o2_saturation = min(100, self.o2_saturation + 3)
+            reward = 1.0 if self.o2_saturation >= 95 else 0.5
+        else:  # wait
+            reward = -0.1
+
+        self.step_count += 1
+        self.done = self.step_count >= 30 or self.toxicity >= 50
+        return self._obs(), reward, self.done
+
+# ── FastAPI app ─────────────────────────────────────────────────────────────
+app = FastAPI(title="Aarogya ICU OpenEnv")
+
+sessions: dict = {}  # session_id -> ICUEnvironment
+
+# ── Models ──────────────────────────────────────────────────────────────────
+class ResetRequest(BaseModel):
+    session_id: Optional[str] = None
+
 class StepRequest(BaseModel):
     session_id: str
-    action: MedicalAction
+    action_id: int  # 0=wait, 1=beta_blocker, 2=oxygen
 
-class StepResponse(BaseModel):
-    session_id: str
-    observation: MedicalObservation
-    reward: float
-    done: bool
-    render: str
+# ── Endpoints ───────────────────────────────────────────────────────────────
+@app.post("/reset")
+def reset(req: ResetRequest = None):
+    sid = (req.session_id if req and req.session_id else None) or str(uuid.uuid4())
+    env = ICUEnvironment()
+    sessions[sid] = env
+    obs = env.reset()
+    return {"session_id": sid, "observation": obs}
 
-app = FastAPI(title="OpenEnv Healthcare API (Requirement 2)")
-# In production you'd have a session manager
-env = OpenEnvHealthcare() 
+@app.get("/state")
+def state(session_id: str):
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"session_id": session_id, "observation": sessions[session_id]._obs()}
 
-@app.post("/step", response_model=StepResponse)
-async def step_agent(request: StepRequest):
-    action_type = request.action.action_type
-    
-    # Map text action back to ID
-    mapping = {"wait": 0, "administer_beta_blocker": 1, "administer_oxygen": 2}
-    action_id = mapping[action_type]
-    
-    try:
-        obs, reward, terminated, truncated, info = env.step(action_id)
-        
-        return StepResponse(
-            session_id=request.session_id,
-            observation=obs, # Already a Pydantic Model
-            reward=reward,
-            done=terminated or truncated,
-            render=info["render"]
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.post("/step")
+def step(req: StepRequest):
+    if req.session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found. Call /reset first.")
+    env = sessions[req.session_id]
+    if env.done:
+        raise HTTPException(status_code=400, detail="Episode done. Call /reset.")
+    obs, reward, done = env.step(req.action_id)
+    return {
+        "session_id": req.session_id,
+        "observation": obs,
+        "reward": reward,
+        "done": done,
+        "render": f"Step {obs['step']} | HR:{obs['heart_rate']} O2:{obs['o2_saturation']} Tox:{obs['toxicity']}",
+    }
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-    
-    @app.get("/.well-known/mcp")
-    def discover_tools():
-        return {
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/.well-known/mcp")
+def discover_tools():
+    return {
         "mcp_version": "2026.1",
         "endpoints": [
             {
                 "name": "administer_beta_blocker",
-                "description": "Reduces heart rate. Required when BPM > 100. Side effect: Increases toxicity.",
+                "description": "Reduces heart rate. Required when BPM > 100.",
                 "parameters": {"type": "object", "properties": {}}
             },
             {
