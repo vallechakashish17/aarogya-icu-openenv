@@ -1,7 +1,6 @@
-uvicorn[standard]
-fastapi
-openenv-core
+fastapi==0.95.2
+uvicorn==0.22.0
+pydantic==1.10.13
 numpy
 pandas
-openai
 requests
