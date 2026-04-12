@@ -1,7 +1,24 @@
 import os
 import uvicorn
-from fastapi import FastAPI
 from openai import OpenAI
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# Add CORS middleware to allow the validator to talk to your API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.post("/reset")
+async def reset():
+    # Return a clean JSON response
+    return {"observation": [140.0, 95.0, 0.0]}
 
 app = FastAPI()
 
