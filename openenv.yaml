@@ -1,19 +1,7 @@
-version: "1.0"
-name: "Aarogya-ICU-OpenEnv"
+spec_version: 1
+name: aarogya-icu-openenv
 description: "AI agent for multi-vital stabilization in critical care."
-tasks:
-  - id: "triage_easy"
-    difficulty: "easy"
-    goal: "Lower Heart Rate below 100 BPM."
-  - id: "icu_balance_medium"
-    difficulty: "medium"
-    goal: "Maintain HR (60-100) and O2 (>92%) simultaneously."
-  - id: "toxic_crisis_hard"
-    difficulty: "hard"
-    goal: "Stabilize vitals while starting with 1.8 Toxicity (Max 2.0)."
-action_space:
-  type: "discrete"
-  description: "0: Wait, 1: Beta-Blocker, 2: Oxygen"
-observation_space:
-  type: "box"
-  description: "[Heart Rate, Oxygen, Toxicity]"
+type: environment
+runtime: docker
+app: server.app:app
+port: 7860
